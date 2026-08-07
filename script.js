@@ -41,6 +41,7 @@ filterButtons.forEach((button) => {
 const CV_KEY  = "5c556fc0d1f8b81d60a5a8737e71a44cd9b9cd2b";
 const CV_BASE = "https://comicvine.gamespot.com/api";
 
+// /search/ endpoint searches name + real_name + aliases natively for characters
 const CHAR_FIELDS = "id,name,real_name,aliases,deck,image,publisher,first_appeared_in_issue,count_of_issue_appearances";
 const VOL_FIELDS  = "id,name,aliases,deck,count_of_issues,publisher,start_year,image,first_issue,last_issue";
 
@@ -93,7 +94,7 @@ function jsonpFetch(url) {
   return new Promise((resolve, reject) => {
     const cbName = `_cvCb${++jsonpCounter}`;
     const script = document.createElement("script");
-    const timeout = setTimeout(() => { cleanup(); reject(new Error("Request timed out")); }, 10000);
+    const timeout = setTimeout(() => { cleanup(); reject(new Error("Request timed out")); }, 12000);
 
     function cleanup() {
       clearTimeout(timeout);
@@ -106,6 +107,30 @@ function jsonpFetch(url) {
     script.onerror = () => { cleanup(); reject(new Error("Network error")); };
     document.head.appendChild(script);
   });
+}
+
+// ── Query normalization ──
+// Generates search variants to handle hyphens, spaces, and mixed casing so
+// "Spider Man" finds "Spider-Man" and vice versa.
+function queryVariants(q) {
+  const base = q.trim();
+  const variants = new Set([base]);
+  if (base.includes(" "))  variants.add(base.replace(/\s+/g, "-"));   // "Iron Man" → "Iron-Man"
+  if (base.includes("-"))  variants.add(base.replace(/-/g, " "));     // "Spider-Man" → "Spider Man"
+  if (base.includes("-"))  variants.add(base.replace(/-/g, ""));      // "Spider-Man" → "SpiderMan"
+  return [...variants];
+}
+
+// ── Era/year extraction ──
+// Characters: parse 4-digit year from first_appeared_in_issue.name
+//   e.g. "Amazing Fantasy (1962) #15" → 1962
+// Volumes: use start_year directly.
+// Items with no parseable year sort to end (year = 0).
+function extractYear(item) {
+  if (item._type === "volume") return parseInt(item.start_year) || 0;
+  const issueName = item.first_appeared_in_issue?.name || "";
+  const m = issueName.match(/\((\d{4})\)/);
+  return m ? parseInt(m[1]) : 0;
 }
 
 // ── Shared utils ──
@@ -149,6 +174,7 @@ function renderCard(item) {
   const isVol = item._type === "volume";
   const img   = item.image?.medium_url || item.image?.small_url || "";
   const pub   = item.publisher?.name || "";
+  const year  = extractYear(item);
 
   const card = document.createElement("article");
   card.className = "char-card";
@@ -160,7 +186,9 @@ function renderCard(item) {
   const meta = isVol
     ? `${item.start_year ? `<span class="vol-year">${escHtml(String(item.start_year))}</span>` : ""}
        ${item.count_of_issues ? `<p class="vol-issue-count">${escHtml(String(item.count_of_issues))} issues</p>` : ""}`
-    : "";
+    : year
+      ? `<span class="vol-year">${year}</span>`
+      : "";
 
   card.innerHTML = `
     ${img
@@ -187,6 +215,7 @@ function showDetail(item) {
   const isVol = item._type === "volume";
   const img   = item.image?.medium_url || item.image?.small_url || "";
   const pub   = item.publisher?.name || "";
+  const year  = extractYear(item);
 
   let subtitle = "";
   let tags = "";
@@ -206,18 +235,20 @@ function showDetail(item) {
       aliases              && detailTag("Aliases", aliases),
     ].filter(Boolean).join("");
   } else {
-    const aliases    = Array.isArray(item.aliases)
+    const rawAliases = Array.isArray(item.aliases)
       ? item.aliases.filter(Boolean).join(", ")
       : (item.aliases || "").replace(/\n/g, ", ").trim();
-    const firstIssue = issueLabel(item.first_appeared_in_issue);
+    const firstIssue = issueLabel(item.first_appeared_in_issue)
+      || item.first_appeared_in_issue?.name || "";
     subtitle = item.real_name || "";
     tags = [
       pubBadge(pub),
       `<span class="type-badge type-char">Character</span>`,
-      item.real_name                      && detailTag("Real name", item.real_name),
-      aliases                             && detailTag("Aliases", aliases),
-      firstIssue                          && detailTag("First appeared", firstIssue),
-      item.count_of_issue_appearances     && `<span class="char-detail-tag">${escHtml(String(item.count_of_issue_appearances))} issue appearances</span>`,
+      item.real_name                  && detailTag("Real name", item.real_name),
+      rawAliases                      && detailTag("Aliases", rawAliases),
+      firstIssue                      && detailTag("First appeared", firstIssue),
+      year                            && detailTag("Era", year),
+      item.count_of_issue_appearances && `<span class="char-detail-tag">${escHtml(String(item.count_of_issue_appearances))} issue appearances</span>`,
     ].filter(Boolean).join("");
   }
 
@@ -250,32 +281,61 @@ function showDetail(item) {
   if (window.lucide) window.lucide.createIcons();
 }
 
-// ── Fetch helpers ──
-
+// ── Character fetch ──
+// Uses /search/ endpoint which queries name, real_name, AND aliases natively.
+// Fires one request per query variant (with/without hyphens) and deduplicates by ID.
 async function fetchCharacters(query) {
-  const url = `${CV_BASE}/characters/?api_key=${CV_KEY}&filter=name:${encodeURIComponent(query)}&field_list=${CHAR_FIELDS}&limit=20&sort=count_of_issue_appearances:desc`;
-  try {
-    const data = await jsonpFetch(url);
-    if (data.status_code !== 1) return [];
-    return (data.results || []).map((c) => ({ ...c, _type: "character" }));
-  } catch {
-    return [];
+  const variants = queryVariants(query);
+  const requests = variants.map((v) => {
+    const url = `${CV_BASE}/search/?api_key=${CV_KEY}&query=${encodeURIComponent(v)}&resources=character&field_list=${CHAR_FIELDS}&limit=20`;
+    return jsonpFetch(url)
+      .then((d) => (d.status_code === 1 ? d.results || [] : []))
+      .catch(() => []);
+  });
+
+  const batches = await Promise.all(requests);
+  const seen = new Set();
+  const chars = [];
+  for (const batch of batches) {
+    for (const c of batch) {
+      if (!seen.has(c.id)) {
+        seen.add(c.id);
+        chars.push({ ...c, _type: "character" });
+      }
+    }
   }
+  return chars;
 }
 
+// ── Volume fetch ──
+// /volumes/ doesn't have a full-text search endpoint, so we use filter=name:X
+// and fire per query variant, deduplicating by ID.
 async function fetchVolumes(query) {
-  const url = `${CV_BASE}/volumes/?api_key=${CV_KEY}&filter=name:${encodeURIComponent(query)}&field_list=${VOL_FIELDS}&limit=20&sort=count_of_issues:desc`;
-  try {
-    const data = await jsonpFetch(url);
-    if (data.status_code !== 1) return [];
-    return (data.results || []).map((v) => ({ ...v, _type: "volume" }));
-  } catch {
-    return [];
+  const variants = queryVariants(query);
+  const requests = variants.map((v) => {
+    const url = `${CV_BASE}/volumes/?api_key=${CV_KEY}&filter=name:${encodeURIComponent(v)}&field_list=${VOL_FIELDS}&limit=20&sort=start_year:desc`;
+    return jsonpFetch(url)
+      .then((d) => (d.status_code === 1 ? d.results || [] : []))
+      .catch(() => []);
+  });
+
+  const batches = await Promise.all(requests);
+  const seen = new Set();
+  const vols = [];
+  for (const batch of batches) {
+    for (const v of batch) {
+      if (!seen.has(v.id)) {
+        seen.add(v.id);
+        vols.push({ ...v, _type: "volume" });
+      }
+    }
   }
+  return vols;
 }
 
-// ── Main search — fires both APIs in parallel, merges results ──
-
+// ── Main search ──
+// Both APIs fire in parallel. Results merge into one array and sort by era
+// (latest year first; items with no parseable year fall to the end).
 async function doSearch(query) {
   if (!query.trim()) { clearResults(); return; }
   showOnly(loadingEl);
@@ -286,15 +346,18 @@ async function doSearch(query) {
       fetchVolumes(query),
     ]);
 
-    // Interleave: char, vol, char, vol… so neither dominates the top
-    const merged = [];
-    const len = Math.max(characters.length, volumes.length);
-    for (let i = 0; i < len; i++) {
-      if (i < characters.length) merged.push(characters[i]);
-      if (i < volumes.length)    merged.push(volumes[i]);
-    }
-
+    const merged = [...characters, ...volumes];
     if (!merged.length) { showOnly(emptyEl); return; }
+
+    // Sort latest era → oldest; items with year=0 (unknown) go last
+    merged.sort((a, b) => {
+      const ya = extractYear(a);
+      const yb = extractYear(b);
+      if (ya === 0 && yb === 0) return 0;
+      if (ya === 0) return 1;
+      if (yb === 0) return -1;
+      return yb - ya;
+    });
 
     resultsEl.innerHTML = "";
     merged.forEach((item) => resultsEl.appendChild(renderCard(item)));
