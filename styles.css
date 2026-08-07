@@ -1023,13 +1023,120 @@ h3 {
 }
 
 .search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.search-results[hidden] {
+  display: none;
+}
+
+/* ── Publisher group section ── */
+
+.publisher-group {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.publisher-group-header {
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  gap: 12px;
+  padding-bottom: 10px;
+}
+
+.pub-group-label {
+  border-radius: 6px;
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 950;
+  padding: 5px 10px;
+  text-transform: uppercase;
+}
+
+.pub-group-label.marvel { background: var(--red); color: var(--white); }
+.pub-group-label.dc     { background: var(--cyan); color: var(--ink); }
+.pub-group-label.image  { background: var(--yellow); color: var(--ink); }
+.pub-group-label.other  { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.8); }
+
+.pub-group-count {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.publisher-group-grid {
   display: grid;
   gap: 18px;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
 }
 
-.search-results[hidden] {
-  display: none;
+/* ── Mantle / legacy group ── */
+
+.mantle-group {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius);
+  grid-column: 1 / -1;
+  padding: 16px;
+}
+
+.mantle-header {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.84rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.mantle-header svg {
+  height: 15px;
+  width: 15px;
+  flex-shrink: 0;
+}
+
+.mantle-count {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  font-size: 0.7rem;
+  padding: 2px 7px;
+}
+
+.mantle-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+}
+
+/* ── Volumes/issues divider ── */
+
+.results-divider {
+  align-items: center;
+  color: rgba(255, 255, 255, 0.3);
+  display: flex;
+  font-size: 0.76rem;
+  font-weight: 900;
+  gap: 12px;
+  text-transform: uppercase;
+}
+
+.results-divider::before,
+.results-divider::after {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  content: "";
+  flex: 1;
+}
+
+.search-results-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
 }
 
 .char-card {
