@@ -1116,6 +1116,11 @@ h3 {
   margin: 6px 0 0;
 }
 
+.era-unknown {
+  color: rgba(255, 255, 255, 0.28);
+  font-style: italic;
+}
+
 /* ── Character detail panel ── */
 
 .char-detail {

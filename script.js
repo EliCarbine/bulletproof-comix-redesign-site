@@ -15,7 +15,6 @@ menuToggle?.addEventListener("click", () => {
   const isOpen = mobileMenu.classList.toggle("is-open");
   menuToggle.setAttribute("aria-label", isOpen ? "Close menu" : "Open menu");
 });
-
 mobileMenu?.addEventListener("click", (event) => {
   if (event.target instanceof HTMLAnchorElement) {
     mobileMenu.classList.remove("is-open");
@@ -43,31 +42,34 @@ filterButtons.forEach((button) => {
 const CV_KEY  = "5c556fc0d1f8b81d60a5a8737e71a44cd9b9cd2b";
 const CV_BASE = "https://comicvine.gamespot.com/api";
 
+// The /search/ endpoint returns first_appeared_in_issue with only {id, name, issue_number}
+// — no volume, no cover_date. We batch-fetch cover_dates via /issues/?filter=id:X|Y|Z
+// after the initial character search.
 const CHAR_FIELDS  = "id,name,real_name,aliases,deck,image,publisher,first_appeared_in_issue,count_of_issue_appearances";
 const VOL_FIELDS   = "id,name,aliases,deck,count_of_issues,publisher,start_year,image,first_issue,last_issue";
 const ISSUE_FIELDS = "id,name,issue_number,volume,image,cover_date,store_date,deck";
 
 // ── DOM refs ──
-const overlay       = document.querySelector("[data-search-overlay]");
-const searchInput   = document.querySelector("[data-search-input]");
-const searchClose   = document.querySelector("[data-search-close]");
-const resultsEl     = document.querySelector("[data-search-results]");
-const hintEl        = document.querySelector("[data-search-hint]");
-const emptyEl       = document.querySelector("[data-search-empty]");
-const errorEl       = document.querySelector("[data-search-error]");
-const loadingEl     = document.querySelector("[data-search-loading]");
-const filterPanel   = document.querySelector("[data-filter-panel]");
-const filterToggle  = document.querySelector("[data-filter-toggle]");
-const filterBadge   = document.querySelector("[data-filter-badge]");
-const filterClear   = document.querySelector("[data-filter-clear]");
+const overlay      = document.querySelector("[data-search-overlay]");
+const searchInput  = document.querySelector("[data-search-input]");
+const searchClose  = document.querySelector("[data-search-close]");
+const resultsEl    = document.querySelector("[data-search-results]");
+const hintEl       = document.querySelector("[data-search-hint]");
+const emptyEl      = document.querySelector("[data-search-empty]");
+const errorEl      = document.querySelector("[data-search-error]");
+const loadingEl    = document.querySelector("[data-search-loading]");
+const filterPanel  = document.querySelector("[data-filter-panel]");
+const filterToggle = document.querySelector("[data-filter-toggle]");
+const filterBadge  = document.querySelector("[data-filter-badge]");
+const filterClear  = document.querySelector("[data-filter-clear]");
 
 // ── State ──
-let searchTimer  = null;
-let jsonpCounter = 0;
-let cachedResults = [];   // all fetched results, pre-filter
+let searchTimer   = null;
+let jsonpCounter  = 0;
+let cachedResults = [];
 const activeFilters = { type: "all", publisher: "all", year: "all" };
 
-// ── Overlay open/close ──
+// ── Overlay ──
 
 function openSearch() {
   overlay.hidden = false;
@@ -83,12 +85,8 @@ function closeSearch() {
   searchInput.value = "";
 }
 
-// ── State helpers ──
-
 function showOnly(el) {
-  [hintEl, emptyEl, errorEl, loadingEl, resultsEl].forEach((e) => {
-    e.hidden = e !== el;
-  });
+  [hintEl, emptyEl, errorEl, loadingEl, resultsEl].forEach((e) => { e.hidden = e !== el; });
   if (el === resultsEl) el.hidden = false;
 }
 
@@ -103,7 +101,7 @@ function clearAll() {
 function jsonpFetch(url) {
   return new Promise((resolve, reject) => {
     const cbName = `_cvCb${++jsonpCounter}`;
-    const script = document.createElement("script");
+    const script  = document.createElement("script");
     const timeout = setTimeout(() => { cleanup(); reject(new Error("Timed out")); }, 12000);
 
     function cleanup() {
@@ -120,31 +118,91 @@ function jsonpFetch(url) {
 }
 
 // ── Query normalization ──
-// Generates variants to handle hyphens and spaces so "Spider Man" finds
-// "Spider-Man" and vice versa.
+// Generates search variants for hyphen/space flexibility:
+//   "Spider Man" → ["Spider Man", "Spider-Man"]
+//   "Spider-Man" → ["Spider-Man", "Spider Man", "SpiderMan"]
 function queryVariants(q) {
   const base = q.trim();
-  const variants = new Set([base]);
-  if (base.includes(" "))  variants.add(base.replace(/\s+/g, "-"));
-  if (base.includes("-"))  variants.add(base.replace(/-/g, " "));
-  if (base.includes("-"))  variants.add(base.replace(/-/g, ""));
-  return [...variants];
+  const set  = new Set([base]);
+  if (base.includes(" "))  set.add(base.replace(/\s+/g, "-"));
+  if (base.includes("-"))  set.add(base.replace(/-/g, " "));
+  if (base.includes("-"))  set.add(base.replace(/-/g, ""));
+  return [...set];
 }
 
 // ── Year extraction ──
-function extractYear(item) {
-  if (item._type === "volume")    return parseInt(item.start_year) || 0;
-  if (item._type === "issue") {
-    const d = item.cover_date || item.store_date || "";
-    return parseInt(d.slice(0, 4)) || 0;
-  }
-  // character: parse "(YYYY)" from first_appeared_in_issue.name
-  const name = item.first_appeared_in_issue?.name || "";
-  const m = name.match(/\((\d{4})\)/);
-  return m ? parseInt(m[1]) : 0;
+//
+// Edge cases:
+//   cover_date / store_date can be null, "0000-00-00", or missing → year = 0
+//   first_appeared_in_issue from /search/ endpoint has no volume/cover_date field
+//   Characters with no first_appeared_in_issue entry at all → year = 0
+//   Items with year = 0 are sortable (pushed to end) but excluded from decade filters
+//
+// Characters are enriched by a secondary batch fetch (enrichCharacterYears)
+// that injects ._firstIssueDate from the actual issue's cover_date.
+function safeYear(val) {
+  const y = parseInt(String(val ?? "").slice(0, 4));
+  return (y >= 1900 && y <= 2100) ? y : 0;
 }
 
-// ── Publisher normalization ──
+function extractYear(item) {
+  if (item._type === "volume")    return safeYear(item.start_year);
+  if (item._type === "issue")     return safeYear(item.cover_date || item.store_date);
+
+  // character: prefer enriched cover_date injected by enrichCharacterYears
+  if (item._firstIssueDate) return safeYear(item._firstIssueDate);
+
+  // fallback: parse "(YYYY)" from issue/volume name if present
+  // (only reliable when volume name includes the year, e.g. "Detective Comics (1937)")
+  const fi = item.first_appeared_in_issue;
+  if (fi) {
+    for (const src of [fi.name || "", fi.volume?.name || ""]) {
+      const m = src.match(/\((\d{4})\)/);
+      if (m) {
+        const y = parseInt(m[1]);
+        if (y >= 1900 && y <= 2100) return y;
+      }
+    }
+  }
+
+  return 0; // unknown era; sorted to end, excluded from decade filters
+}
+
+// ── Batch-enrich character years ──
+// The /search/ endpoint returns first_appeared_in_issue without cover_date.
+// For every character whose year is still 0, we batch their issue IDs and
+// call /issues/?filter=id:A|B|C to get cover_dates in as few requests as possible.
+async function enrichCharacterYears(chars) {
+  const BATCH = 30;
+  const todo  = chars.filter((c) => !extractYear(c) && c.first_appeared_in_issue?.id);
+  if (!todo.length) return;
+
+  const batches = [];
+  for (let i = 0; i < todo.length; i += BATCH) batches.push(todo.slice(i, i + BATCH));
+
+  await Promise.all(batches.map(async (batch) => {
+    const ids = batch.map((c) => c.first_appeared_in_issue.id).join("|");
+    const url = `${CV_BASE}/issues/?api_key=${CV_KEY}&filter=id:${ids}&field_list=id,cover_date&limit=${BATCH}`;
+    try {
+      const data = await jsonpFetch(url);
+      if (data.status_code !== 1) return;
+      const map = {};
+      for (const issue of data.results || []) {
+        if (issue.cover_date && issue.cover_date !== "0000-00-00") map[issue.id] = issue.cover_date;
+      }
+      for (const char of batch) {
+        const date = map[char.first_appeared_in_issue.id];
+        if (date) char._firstIssueDate = date;
+      }
+    } catch { /* silently skip; year stays 0 */ }
+  }));
+}
+
+// ── Publisher helpers ──
+//
+// Edge cases:
+//   Issues: the volume mini-object in /issues/ responses has no publisher field.
+//   These will always match the "other" publisher bucket.
 function publisherName(item) {
   if (item._type === "issue") return item.volume?.publisher?.name || "";
   return item.publisher?.name || "";
@@ -158,15 +216,12 @@ function publisherClass(name) {
   return "other";
 }
 
-// ── Shared render utils ──
+// ── Render utils ──
 
 function escHtml(str) {
   return String(str ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
 function pubBadge(name) {
@@ -185,11 +240,11 @@ function issueLabel(issue) {
   return parts.join(" ");
 }
 
-// ── Card renderer ──
-
 function typeLabel(type) {
   return { character: "Character", volume: "Volume", issue: "Issue" }[type] || type;
 }
+
+// ── Card renderer ──
 
 function renderCard(item) {
   const img  = item.image?.medium_url || item.image?.small_url || "";
@@ -200,34 +255,32 @@ function renderCard(item) {
   const card = document.createElement("article");
   card.className = "char-card";
   card.setAttribute("tabindex", "0");
-  card.setAttribute("aria-label", item.name);
+  card.setAttribute("aria-label", item.name || "Result");
 
   const typeBadge = `<span class="type-badge type-${type}">${typeLabel(type)}</span>`;
 
-  let mainTitle = escHtml(item.name);
-  let meta = "";
+  let heading = escHtml(item.name || "");
+  let meta    = "";
 
   if (type === "issue") {
-    const series = item.volume?.name || "";
+    const series   = item.volume?.name || "";
     const issueNum = item.issue_number ? `#${item.issue_number}` : "";
-    mainTitle = series
-      ? `${escHtml(series)} ${escHtml(issueNum)}`
-      : escHtml(item.name);
-    meta = year ? `<span class="vol-year">${year}</span>` : "";
+    heading = series ? `${escHtml(series)} ${escHtml(issueNum)}` : escHtml(item.name || "");
+    meta    = year ? `<span class="vol-year">${year}</span>` : "";
   } else if (type === "volume") {
     meta = `${item.start_year ? `<span class="vol-year">${escHtml(String(item.start_year))}</span>` : ""}
             ${item.count_of_issues ? `<p class="vol-issue-count">${escHtml(String(item.count_of_issues))} issues</p>` : ""}`;
   } else {
-    meta = year ? `<span class="vol-year">${year}</span>` : "";
+    meta = year ? `<span class="vol-year">${year}</span>` : `<span class="vol-year era-unknown">Era unknown</span>`;
   }
 
   card.innerHTML = `
     ${img
-      ? `<img src="${escHtml(img)}" alt="${escHtml(item.name)}" loading="lazy" />`
+      ? `<img src="${escHtml(img)}" alt="${escHtml(item.name || "")}" loading="lazy" />`
       : `<div class="card-img-placeholder"></div>`}
     <div class="char-card-body">
       <div class="card-badges">${typeBadge}${pubBadge(pub)}</div>
-      <h3 class="char-card-name">${mainTitle}</h3>
+      <h3 class="char-card-name">${heading}</h3>
       ${meta}
       ${item.deck ? `<p class="char-card-deck">${escHtml(item.deck)}</p>` : ""}
     </div>
@@ -247,23 +300,25 @@ function showDetail(item) {
   const pub  = publisherName(item);
   const year = extractYear(item);
   const type = item._type;
+  const fi   = item.first_appeared_in_issue;
 
-  let heading = escHtml(item.name);
+  let heading  = escHtml(item.name || "");
   let subtitle = "";
-  let tags = "";
+  let tags     = "";
 
   if (type === "issue") {
     const series   = item.volume?.name || "";
     const issueNum = item.issue_number ? `#${item.issue_number}` : "";
-    heading  = series ? `${escHtml(series)} ${escHtml(issueNum)}` : escHtml(item.name);
-    subtitle = item.name !== heading ? item.name : "";
+    heading  = series ? `${escHtml(series)} ${escHtml(issueNum)}` : escHtml(item.name || "");
+    subtitle = item.name !== heading ? (item.name || "") : "";
     tags = [
       pubBadge(pub),
       `<span class="type-badge type-issue">Issue</span>`,
-      year                 && detailTag("Cover date", year),
-      item.issue_number    && detailTag("Issue", `#${item.issue_number}`),
-      series               && detailTag("Series", series),
+      year              && detailTag("Cover date", year),
+      item.issue_number && detailTag("Issue", `#${item.issue_number}`),
+      series            && detailTag("Series", series),
     ].filter(Boolean).join("");
+
   } else if (type === "volume") {
     const aliases    = (item.aliases || "").replace(/\n/g, ", ").trim();
     const firstIssue = issueLabel(item.first_issue) || item.first_issue?.name || "";
@@ -278,21 +333,24 @@ function showDetail(item) {
       lastIssue            && detailTag("Last issue",  lastIssue),
       aliases              && detailTag("Aliases", aliases),
     ].filter(Boolean).join("");
+
   } else {
     // character
     const rawAliases = Array.isArray(item.aliases)
       ? item.aliases.filter(Boolean).join(", ")
       : (item.aliases || "").replace(/\n/g, ", ").trim();
-    const firstIssue = issueLabel(item.first_appeared_in_issue)
-      || item.first_appeared_in_issue?.name || "";
+    const firstIssueName = fi
+      ? [fi.volume?.name, fi.issue_number ? `#${fi.issue_number}` : fi.name].filter(Boolean).join(" ")
+      : "";
     subtitle = item.real_name || "";
     tags = [
       pubBadge(pub),
       `<span class="type-badge type-character">Character</span>`,
       item.real_name                  && detailTag("Real name", item.real_name),
       rawAliases                      && detailTag("Aliases", rawAliases),
-      firstIssue                      && detailTag("First appeared", firstIssue),
+      firstIssueName                  && detailTag("First appeared", firstIssueName),
       year                            && detailTag("Era", year),
+      !year                           && `<span class="char-detail-tag">Era: unknown</span>`,
       item.count_of_issue_appearances && `<span class="char-detail-tag">${escHtml(String(item.count_of_issue_appearances))} issue appearances</span>`,
     ].filter(Boolean).join("");
   }
@@ -301,7 +359,7 @@ function showDetail(item) {
   detail.className = "char-detail";
   detail.innerHTML = `
     ${img
-      ? `<img class="char-detail-img" src="${escHtml(img)}" alt="${escHtml(item.name)}" />`
+      ? `<img class="char-detail-img" src="${escHtml(img)}" alt="${escHtml(item.name || "")}" />`
       : `<div class="detail-img-placeholder"></div>`}
     <div class="char-detail-info">
       <button class="char-detail-back" data-detail-back>
@@ -337,18 +395,16 @@ function matchesFilters(item) {
     const pub = publisherName(item).toLowerCase();
     if (publisher === "marvel" && !pub.includes("marvel")) return false;
     if (publisher === "dc"     && !pub.includes("dc"))     return false;
+    // "other" = neither Marvel nor DC; issues without publisher data also land here
     if (publisher === "other"  && (pub.includes("marvel") || pub.includes("dc"))) return false;
   }
 
   if (year !== "all") {
     const y = extractYear(item);
-    if (!y) return false;
-    if (year === "pre1960") {
-      if (y >= 1960) return false;
-    } else {
-      const decade = parseInt(year);
-      if (y < decade || y >= decade + 10) return false;
-    }
+    if (!y) return false; // unknown era excluded from all decade filters
+    if (year === "pre1960") return y < 1960;
+    const decade = parseInt(year);
+    return y >= decade && y < decade + 10;
   }
 
   return true;
@@ -376,10 +432,8 @@ function updateFilterBadge() {
     activeFilters.publisher !== "all",
     activeFilters.year      !== "all",
   ].filter(Boolean).length;
-
   filterBadge.textContent = count;
-  filterBadge.hidden = count === 0;
-  filterToggle.setAttribute("aria-expanded", !filterPanel.hidden ? "true" : "false");
+  filterBadge.hidden      = count === 0;
 }
 
 // ── API fetchers ──
@@ -390,9 +444,9 @@ async function fetchCharacters(query) {
     const url = `${CV_BASE}/search/?api_key=${CV_KEY}&query=${encodeURIComponent(v)}&resources=character&field_list=${CHAR_FIELDS}&limit=20`;
     return jsonpFetch(url).then((d) => (d.status_code === 1 ? d.results || [] : [])).catch(() => []);
   });
-  const batches = await Promise.all(reqs);
   const seen = new Set();
-  return batches.flat().filter((c) => { if (seen.has(c.id)) return false; seen.add(c.id); return true; })
+  return (await Promise.all(reqs)).flat()
+    .filter((c) => { if (seen.has(c.id)) return false; seen.add(c.id); return true; })
     .map((c) => ({ ...c, _type: "character" }));
 }
 
@@ -402,9 +456,9 @@ async function fetchVolumes(query) {
     const url = `${CV_BASE}/volumes/?api_key=${CV_KEY}&filter=name:${encodeURIComponent(v)}&field_list=${VOL_FIELDS}&limit=20&sort=start_year:desc`;
     return jsonpFetch(url).then((d) => (d.status_code === 1 ? d.results || [] : [])).catch(() => []);
   });
-  const batches = await Promise.all(reqs);
   const seen = new Set();
-  return batches.flat().filter((v) => { if (seen.has(v.id)) return false; seen.add(v.id); return true; })
+  return (await Promise.all(reqs)).flat()
+    .filter((v) => { if (seen.has(v.id)) return false; seen.add(v.id); return true; })
     .map((v) => ({ ...v, _type: "volume" }));
 }
 
@@ -414,9 +468,9 @@ async function fetchIssues(query) {
     const url = `${CV_BASE}/issues/?api_key=${CV_KEY}&filter=name:${encodeURIComponent(v)}&field_list=${ISSUE_FIELDS}&limit=20&sort=cover_date:desc`;
     return jsonpFetch(url).then((d) => (d.status_code === 1 ? d.results || [] : [])).catch(() => []);
   });
-  const batches = await Promise.all(reqs);
   const seen = new Set();
-  return batches.flat().filter((i) => { if (seen.has(i.id)) return false; seen.add(i.id); return true; })
+  return (await Promise.all(reqs)).flat()
+    .filter((i) => { if (seen.has(i.id)) return false; seen.add(i.id); return true; })
     .map((i) => ({ ...i, _type: "issue" }));
 }
 
@@ -433,9 +487,13 @@ async function doSearch(query) {
       fetchIssues(query),
     ]);
 
+    // Enrich character years: batch-fetch cover_date for any character
+    // whose year couldn't be parsed from the search response
+    await enrichCharacterYears(characters);
+
     const merged = [...characters, ...volumes, ...issues];
 
-    // Sort latest era → oldest; unknown year falls to end
+    // Sort: latest era first; unknown year (0) pushed to end
     merged.sort((a, b) => {
       const ya = extractYear(a), yb = extractYear(b);
       if (!ya && !yb) return 0;
@@ -445,7 +503,6 @@ async function doSearch(query) {
     });
 
     cachedResults = merged;
-
     if (!merged.length) { showOnly(emptyEl); return; }
     renderFiltered();
   } catch (err) {
@@ -457,58 +514,41 @@ async function doSearch(query) {
 // ── Filter panel events ──
 
 filterToggle?.addEventListener("click", () => {
-  const isOpen = filterPanel.hidden;
-  filterPanel.hidden = !isOpen;
-  filterToggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+  const opening = filterPanel.hidden;
+  filterPanel.hidden = !opening;
+  filterToggle.setAttribute("aria-expanded", opening ? "true" : "false");
 });
 
-// Type chips
-document.querySelectorAll("[data-ftype]").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll("[data-ftype]").forEach((b) => b.classList.remove("is-active"));
-    btn.classList.add("is-active");
-    activeFilters.type = btn.dataset.ftype;
-    updateFilterBadge();
-    renderFiltered();
+function bindFilterGroup(attr) {
+  document.querySelectorAll(`[${attr}]`).forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(`[${attr}]`).forEach((b) => b.classList.remove("is-active"));
+      btn.classList.add("is-active");
+      activeFilters[{ "data-ftype": "type", "data-fpub": "publisher", "data-fyear": "year" }[attr]]
+        = btn.dataset[{ "data-ftype": "ftype", "data-fpub": "fpub", "data-fyear": "fyear" }[attr]];
+      updateFilterBadge();
+      renderFiltered();
+    });
   });
-});
+}
 
-// Publisher chips
-document.querySelectorAll("[data-fpub]").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll("[data-fpub]").forEach((b) => b.classList.remove("is-active"));
-    btn.classList.add("is-active");
-    activeFilters.publisher = btn.dataset.fpub;
-    updateFilterBadge();
-    renderFiltered();
-  });
-});
+bindFilterGroup("data-ftype");
+bindFilterGroup("data-fpub");
+bindFilterGroup("data-fyear");
 
-// Year chips
-document.querySelectorAll("[data-fyear]").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll("[data-fyear]").forEach((b) => b.classList.remove("is-active"));
-    btn.classList.add("is-active");
-    activeFilters.year = btn.dataset.fyear;
-    updateFilterBadge();
-    renderFiltered();
-  });
-});
-
-// Clear all filters
 filterClear?.addEventListener("click", () => {
   activeFilters.type = "all";
   activeFilters.publisher = "all";
   activeFilters.year = "all";
-  document.querySelectorAll("[data-ftype]")[0]?.classList.add("is-active");
-  document.querySelectorAll("[data-ftype]").forEach((b, i) => b.classList.toggle("is-active", i === 0));
-  document.querySelectorAll("[data-fpub]").forEach((b, i) => b.classList.toggle("is-active", i === 0));
-  document.querySelectorAll("[data-fyear]").forEach((b, i) => b.classList.toggle("is-active", i === 0));
+  ["data-ftype", "data-fpub", "data-fyear"].forEach((attr) => {
+    const chips = document.querySelectorAll(`[${attr}]`);
+    chips.forEach((b, i) => b.classList.toggle("is-active", i === 0));
+  });
   updateFilterBadge();
   renderFiltered();
 });
 
-// ── Search input ──
+// ── Search input events ──
 
 document.querySelector('[aria-label="Search"]')?.addEventListener("click", openSearch);
 searchClose?.addEventListener("click", closeSearch);
