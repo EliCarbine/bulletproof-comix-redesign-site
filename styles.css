@@ -813,48 +813,32 @@ h3 {
   border-color: transparent;
 }
 
-/* ── Search tabs ── */
+/* ── Type badges (Character / Volume) ── */
 
-.search-tabs {
-  background: rgba(18, 18, 18, 0.98);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+.card-badges {
   display: flex;
-  gap: 4px;
-  padding: 10px clamp(18px, 4vw, 56px);
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 8px;
 }
 
-.search-tab {
-  align-items: center;
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: var(--radius);
-  color: rgba(255, 255, 255, 0.55);
-  cursor: pointer;
-  display: inline-flex;
-  font: inherit;
-  font-size: 0.86rem;
-  font-weight: 900;
-  gap: 7px;
-  min-height: 38px;
-  padding: 8px 14px;
+.type-badge {
+  border-radius: 999px;
+  display: inline-block;
+  font-size: 0.66rem;
+  font-weight: 950;
+  padding: 3px 7px;
   text-transform: uppercase;
-  transition: background 0.12s, color 0.12s;
 }
 
-.search-tab svg {
-  height: 15px;
-  width: 15px;
+.type-char {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.75);
 }
 
-.search-tab:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--white);
-}
-
-.search-tab.is-active {
-  background: var(--red);
-  border-color: transparent;
-  color: var(--white);
+.type-vol {
+  background: var(--yellow);
+  color: var(--ink);
 }
 
 /* ── Search body ── */
