@@ -522,14 +522,22 @@ function showDetail(item) {
 // Filter logic
 // ════════════════════════════════════════
 
+// Permanent publisher allowlist — only Marvel, DC, and Image results shown
+function isAllowedPublisher(item) {
+  const pub = publisherName(item).toLowerCase();
+  return pub.includes("marvel") || pub.includes("dc") || pub.includes("image");
+}
+
 function matchesFilters(item) {
+  if (!isAllowedPublisher(item)) return false;
+
   const { type, publisher, year } = activeFilters;
   if (type !== "all" && item._type !== type) return false;
   if (publisher !== "all") {
     const pub = publisherName(item).toLowerCase();
     if (publisher === "marvel" && !pub.includes("marvel")) return false;
     if (publisher === "dc"     && !pub.includes("dc"))     return false;
-    if (publisher === "other"  && (pub.includes("marvel") || pub.includes("dc"))) return false;
+    if (publisher === "image"  && !pub.includes("image"))  return false;
   }
   if (year !== "all") {
     const y = extractYear(item);
