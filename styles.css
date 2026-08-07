@@ -813,6 +813,52 @@ h3 {
   border-color: transparent;
 }
 
+/* ── Search tabs ── */
+
+.search-tabs {
+  background: rgba(18, 18, 18, 0.98);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  gap: 4px;
+  padding: 10px clamp(18px, 4vw, 56px);
+}
+
+.search-tab {
+  align-items: center;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius);
+  color: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 900;
+  gap: 7px;
+  min-height: 38px;
+  padding: 8px 14px;
+  text-transform: uppercase;
+  transition: background 0.12s, color 0.12s;
+}
+
+.search-tab svg {
+  height: 15px;
+  width: 15px;
+}
+
+.search-tab:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--white);
+}
+
+.search-tab.is-active {
+  background: var(--red);
+  border-color: transparent;
+  color: var(--white);
+}
+
+/* ── Search body ── */
+
 .search-body {
   flex: 1;
   padding: clamp(28px, 4vw, 48px) clamp(18px, 4vw, 56px);
@@ -920,6 +966,33 @@ h3 {
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
+}
+
+.card-img-placeholder {
+  aspect-ratio: 3 / 4;
+  background: #1b1e22;
+}
+
+.detail-img-placeholder {
+  aspect-ratio: 3 / 4;
+  background: #1b1e22;
+  width: 100%;
+}
+
+.vol-year {
+  color: var(--cyan);
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 900;
+  margin-bottom: 6px;
+  margin-right: 6px;
+  text-transform: uppercase;
+}
+
+.vol-issue-count {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.78rem;
+  margin: 6px 0 0;
 }
 
 /* ── Character detail panel ── */

@@ -41,7 +41,7 @@
       </div>
     </header>
 
-    <div class="search-overlay" data-search-overlay aria-modal="true" role="dialog" aria-label="Character search" hidden>
+    <div class="search-overlay" data-search-overlay aria-modal="true" role="dialog" aria-label="Comic search" hidden>
       <div class="search-header">
         <div class="search-input-wrap">
           <i data-lucide="search" class="search-icon-inline"></i>
@@ -51,7 +51,7 @@
             type="search"
             placeholder="Search characters — Batman, Spider-Man, Storm…"
             autocomplete="off"
-            aria-label="Search comic characters"
+            aria-label="Search comic characters and volumes"
           />
         </div>
         <button class="search-close" data-search-close aria-label="Close search">
@@ -59,10 +59,19 @@
         </button>
       </div>
 
+      <div class="search-tabs" role="tablist" aria-label="Search type">
+        <button class="search-tab is-active" data-tab="characters" role="tab" aria-selected="true">
+          <i data-lucide="user"></i> Characters
+        </button>
+        <button class="search-tab" data-tab="volumes" role="tab" aria-selected="false">
+          <i data-lucide="book-open"></i> Volumes
+        </button>
+      </div>
+
       <div class="search-body" data-search-body>
-        <p class="search-hint" data-search-hint>Type a character name to search the Comic Vine database.</p>
+        <p class="search-hint" data-search-hint>Type a name to search the Comic Vine database.</p>
         <div class="search-results" data-search-results hidden></div>
-        <p class="search-empty" data-search-empty hidden>No characters found. Try a different name.</p>
+        <p class="search-empty" data-search-empty hidden>No results found. Try a different name.</p>
         <p class="search-error" data-search-error hidden>Something went wrong. Check your connection and try again.</p>
         <div class="search-loading" data-search-loading hidden>
           <span class="spinner"></span>
