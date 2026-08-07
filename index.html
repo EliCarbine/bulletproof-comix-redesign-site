@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bulletproof Comics | Redesign Concept</title>
+    <meta
+      name="description"
+      content="A modern redesign concept for Bulletproof Comics, Brooklyn's collector-focused comic, gaming, and event shop."
+    />
+    <link rel="preconnect" href="https://www.bulletproofcomix.com" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
+    <script src="script.js" defer></script>
+  </head>
+  <body>
+    <header class="site-header" data-header>
+      <a class="brand" href="#" aria-label="Bulletproof Comics home">
+        <img src="https://www.bulletproofcomix.com/uploads/5/5/1/9/551989/logo3.png" alt="Bulletproof Comics" />
+      </a>
+      <nav class="desktop-nav" aria-label="Primary navigation">
+        <a href="#drops">New Drops</a>
+        <a href="#comics">Comics</a>
+        <a href="#video-games">Video Games</a>
+        <a href="#manga">Manga</a>
+        <a href="#vintage-media">Vintage Media</a>
+        <a href="#signed">Signed & CGC</a>
+        <a href="#events">Events</a>
+        <a href="#visit">Visit Us</a>
+      </nav>
+      <div class="header-actions">
+        <button class="icon-button" aria-label="Search">
+          <i data-lucide="search"></i>
+        </button>
+        <button class="icon-button" aria-label="Shopping cart">
+          <i data-lucide="shopping-bag"></i>
+        </button>
+        <button class="icon-button menu-toggle" aria-label="Open menu" data-menu-toggle>
+          <i data-lucide="menu"></i>
+        </button>
+      </div>
+    </header>
+
+    <div class="search-overlay" data-search-overlay aria-modal="true" role="dialog" aria-label="Character search" hidden>
+      <div class="search-header">
+        <div class="search-input-wrap">
+          <i data-lucide="search" class="search-icon-inline"></i>
+          <input
+            class="search-input"
+            data-search-input
+            type="search"
+            placeholder="Search characters — Batman, Spider-Man, Storm…"
+            autocomplete="off"
+            aria-label="Search comic characters"
+          />
+        </div>
+        <button class="search-close" data-search-close aria-label="Close search">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <div class="search-body" data-search-body>
+        <p class="search-hint" data-search-hint>Type a character name to search the Comic Vine database.</p>
+        <div class="search-results" data-search-results hidden></div>
+        <p class="search-empty" data-search-empty hidden>No characters found. Try a different name.</p>
+        <p class="search-error" data-search-error hidden>Something went wrong. Check your connection and try again.</p>
+        <div class="search-loading" data-search-loading hidden>
+          <span class="spinner"></span>
+          <span>Searching…</span>
+        </div>
+      </div>
+    </div>
+
+    <nav class="mobile-menu" data-mobile-menu aria-label="Mobile navigation">
+      <a href="#drops">New Drops</a>
+      <a href="#comics">Comics</a>
+      <a href="#video-games">Video Games</a>
+      <a href="#manga">Manga</a>
+      <a href="#vintage-media">Vintage Media</a>
+      <a href="#signed">Signed & CGC</a>
+      <a href="#events">Events</a>
+      <a href="#visit">Visit Us</a>
+    </nav>
+
+    <main>
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-media" aria-hidden="true">
+          <img
+            src="https://www.bulletproofcomix.com/uploads/5/5/1/9/551989/bulletproofb_orig.jpg"
+            alt=""
+          />
+          <img
+            src="https://www.bulletproofcomix.com/uploads/5/5/1/9/551989/ronin2-bulletproofa_orig.jpg"
+            alt=""
+          />
+          <img
+            src="https://www.bulletproofcomix.com/uploads/5/5/1/9/551989/action-1000-virgin_orig.jpg"
+            alt=""
+          />
+        </div>
+        <div class="hero-content">
+          <p class="eyebrow">Brooklyn collector shop</p>
+          <h1 id="hero-title">Bulletproof Comics</h1>
+          <p class="hero-copy">
+            Exclusive variants, signed editions, CGC collectibles, gaming events, skate gear, and limited drops from
+            2178 Nostrand Ave.
+          </p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#drops">
+              <i data-lucide="sparkles"></i>
+              Shop New Drops
+            </a>
+            <a class="button button-secondary" href="#events">
+              <i data-lucide="calendar-days"></i>
+              See Events
+            </a>
+          </div>
+        </div>
+        <aside class="store-panel" aria-label="Store information">
+          <div>
+            <span>Open today</span>
+            <strong>11 AM-8 PM</strong>
+          </div>
+          <div>
+            <span>Call</span>
+            <strong>(718) 434-8512</strong>
+          </div>
+          <a href="#visit">Get directions</a>
+        </aside>
+      </section>
+
+      <section class="ticker" aria-label="Store highlights">
+        <span>Exclusive variants</span>
+        <span>CGC Signature Series</span>
+        <span>Yu-Gi-Oh events</span>
+        <span>Signed comics</span>
+        <span>Original art</span>
+      </section>
+
+      <section id="drops" class="section">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Fresh from the wall</p>
+            <h2>New and Limited</h2>
+          </div>
+          <div class="filters" aria-label="Product filters">
+            <button class="filter is-active" data-filter="all">All</button>
+            <button class="filter" data-filter="exclusive">Exclusive</button>
+            <button class="filter" data-filter="signed">Signed</button>
+            <button class="filter" data-filter="cgc">CGC</button>
+          </div>
+        </div>
+
+        <div class="product-grid">
+          <article class="product-card" data-category="exclusive">
+            <a href="https://www.bulletproofcomix.com/store/p1036/DKIII_%234_SET_of_2_books.html">
+              <img src="https://www.bulletproofcomix.com/uploads/5/5/1/9/551989/dkiii-4-color_orig.jpeg" alt="DKIII issue 4 set" />
+            </a>
+            <div class="product-body">
+              <span class="badge">Exclusive</span>
+              <h3>DKIII #4 Set of 2</h3>
+              <p>Collector set with bold cover presentation.</p>
+              <div class="product-row">
+                <strong>View item</strong>
+                <button aria-label="Add DKIII issue 4 set to cart"><i data-lucide="plus"></i></button>
+              </div>
+            </div>
+          </article>
+
+          <article class="product-card" data-category="exclusive cgc">
+            <a href="https://www.bulletproofcomix.com/store/p1035/DKIII_%235_SET_of_2_books.html">
+              <img src="https://www.bulletproofcomix.com/uploads/5/5/1/9/551989/dkiii-5-color_orig.jpg" alt="DKIII issue 5 set" />
+            </a>
+            <div class="product-body">
+              <span class="badge badge-blue">CGC Ready</span>
+              <h3>DKIII #5 Set of 2</h3>
+              <p>Variant pair staged for collectors and slab fans.</p>
+              <div class="product-row">
+                <strong>View item</strong>
+                <button aria-label="Add DKIII issue 5 set to cart"><i data-lucide="plus"></i></button>
+              </div>
+            </div>
+          </article>
+
+          <article class="product-card" data-category="exclusive">
+            <a href="https://www.bulletproofcomix.com/store/p1034/Deceased_%234_%26_Action_1000_Vrigin_Set_of_2.html">
+              <img src="https://www.bulletproofcomix.com/uploads/5/5/1/9/551989/action-1000-virgin_orig.jpg" alt="Action Comics 1000 virgin variant" />
+            </a>
+            <div class="product-body">
+              <span class="badge">Exclusive</span>
+              <h3>Action 1000 Virgin Set</h3>
+              <p>High-impact Superman cover set for DC collectors.</p>
+              <div class="product-row">
+                <strong>View item</strong>
+                <button aria-label="Add Action 1000 Virgin Set to cart"><i data-lucide="plus"></i></button>
+              </div>
+            </div>
+          </article>
+
+          <article class="product-card" data-category="signed cgc">
+            <a href="https://www.bulletproofcomix.com/store/p949/Tony_Start_NYCC_exclusive_signed_Litho_by_Damion_Scott.html">
+              <img src="https://www.bulletproofcomix.com/uploads/5/5/1/9/551989/rdj-ironm-1_orig.jpg" alt="Tony Stark signed lithograph" />
+            </a>
+            <div class="product-body">
+              <span class="badge badge-yellow">Signed</span>
+              <h3>Tony Stark NYCC Litho</h3>
+              <p>Signed Damion Scott art with convention energy.</p>
+              <div class="product-row">
+                <strong>View item</strong>
+                <button aria-label="Add Tony Stark NYCC Litho to cart"><i data-lucide="plus"></i></button>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="comics" class="section section-dark">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Shop the stacks</p>
+            <h2>Collector Lanes</h2>
+          </div>
+          <a class="text-link" href="https://www.bulletproofcomix.com/featured-exclusives.html">View all categories</a>
+        </div>
+        <div class="category-grid">
+          <a class="category-tile" href="https://www.bulletproofcomix.com/marvel.html">
+            <span>Marvel</span>
+            <i data-lucide="shield"></i>
+          </a>
+          <a class="category-tile" href="https://www.bulletproofcomix.com/dc-comics.html">
+            <span>DC Comics</span>
+            <i data-lucide="zap"></i>
+          </a>
+          <a class="category-tile" href="https://www.bulletproofcomix.com/tmnt.html">
+            <span>TMNT</span>
+            <i data-lucide="circle-dot"></i>
+          </a>
+          <a class="category-tile" href="https://www.bulletproofcomix.com/signed-comics.html">
+            <span>Signed Comics</span>
+            <i data-lucide="pen-line"></i>
+          </a>
+          <a class="category-tile" href="https://www.bulletproofcomix.com/original-art.html">
+            <span>Original Art</span>
+            <i data-lucide="palette"></i>
+          </a>
+          <a class="category-tile" href="https://www.bulletproofcomix.com/bp-skate-shop.html">
+            <span>Skate Shop</span>
+            <i data-lucide="move-right"></i>
+          </a>
+        </div>
+      </section>
+
+      <section class="section media-showcase" aria-labelledby="media-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">More collector lanes</p>
+            <h2 id="media-title">Games, Manga, and Vintage Media</h2>
+          </div>
+          <a class="text-link" href="#visit">Ask what is in stock</a>
+        </div>
+        <div class="media-tabs" aria-label="Expanded shop categories">
+          <article id="video-games" class="media-tab games">
+            <div class="media-art" aria-hidden="true">
+              <i data-lucide="gamepad-2"></i>
+              <span></span>
+            </div>
+            <div class="media-copy">
+              <span class="badge badge-blue">Video Games</span>
+              <h3>Retro carts, modern hits, trade-ins, and tournament-ready gear.</h3>
+              <p>
+                Give players a fast path to new releases, used finds, card-game nights, accessories, and the kind of
+                shelf surprises that make a Brooklyn shop worth checking in person.
+              </p>
+              <a href="#events">See gaming events</a>
+            </div>
+          </article>
+          <article id="manga" class="media-tab manga">
+            <div class="media-art" aria-hidden="true">
+              <i data-lucide="book-open"></i>
+              <span></span>
+            </div>
+            <div class="media-copy">
+              <span class="badge badge-yellow">Manga</span>
+              <h3>Series starters, fresh volumes, boxed sets, and display-worthy covers.</h3>
+              <p>
+                Separate manga browsing from single-issue comics so readers can scan by series, volume, publisher,
+                age range, and staff picks without digging through the whole catalog.
+              </p>
+              <a href="#visit">Browse in Brooklyn</a>
+            </div>
+          </article>
+          <article id="vintage-media" class="media-tab vintage">
+            <div class="media-art" aria-hidden="true">
+              <i data-lucide="disc-3"></i>
+              <span></span>
+            </div>
+            <div class="media-copy">
+              <span class="badge">Vintage Media</span>
+              <h3>VHS, DVDs, magazines, posters, oddball collectibles, and old-school display pieces.</h3>
+              <p>
+                Surface the nostalgia bins with condition notes, format labels, rare-find badges, and local-pickup
+                cues so collectors know what is worth coming in for.
+              </p>
+              <a href="#drops">Check new drops</a>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="signed" class="split-section">
+        <div class="feature-copy">
+          <p class="eyebrow">Signed, slabbed, scarce</p>
+          <h2>For collectors chasing the sharper copy.</h2>
+          <p>
+            Put signatures, certification details, condition notes, and artist credits where collectors can scan them
+            fast. Every listing should make the status obvious: raw, signed, CGC-ready, graded, preorder, or in stock.
+          </p>
+          <a class="button button-primary" href="https://www.bulletproofcomix.com/cgc-signature-series.html">
+            <i data-lucide="badge-check"></i>
+            Browse CGC
+          </a>
+        </div>
+        <div class="cover-stack" aria-label="Featured comic covers">
+          <img src="https://www.bulletproofcomix.com/uploads/5/5/1/9/551989/tmnt-lostyears03-artwork-bulletproof-aq-col-resized-1-1_orig.jpg" alt="TMNT Lost Years cover" />
+          <img src="https://www.bulletproofcomix.com/uploads/5/5/1/9/551989/published/brzrkr-meyers-jonboy-1000.jpg?1625429740" alt="BRZRKR cover" />
+          <img src="https://www.bulletproofcomix.com/uploads/5/5/1/9/551989/published/black-panther-orig-cover.jpg?1625429743" alt="Black Panther cover" />
+        </div>
+      </section>
+
+      <section id="events" class="section">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">At the shop</p>
+            <h2>Events and Tournaments</h2>
+          </div>
+          <a class="text-link" href="https://www.bulletproofcomix.com/upcoming-events.html">Full calendar</a>
+        </div>
+        <div class="event-grid">
+          <article class="event-card">
+            <span class="event-date">Aug 03</span>
+            <h3>Yu-Gi-Oh Tournament Night</h3>
+            <p>Fast registration, format details, prize support, and start time belong right on the event card.</p>
+            <a href="https://www.bulletproofcomix.com/yu-gi-oh-schedule--events.html">Tournament schedule</a>
+          </article>
+          <article class="event-card">
+            <span class="event-date">Aug 10</span>
+            <h3>CGC Signature Window</h3>
+            <p>Show signing deadlines, submission rules, fees, and pickup/shipping options before customers call.</p>
+            <a href="https://www.bulletproofcomix.com/cgc-signature-series.html">Submission details</a>
+          </article>
+          <article class="event-card">
+            <span class="event-date">Archive</span>
+            <h3>Past Signings</h3>
+            <p>Keep convention photos and past guest pages, but label them clearly so the site feels current.</p>
+            <a href="https://www.bulletproofcomix.com/in-store-comic-signings.html">Past events</a>
+          </article>
+        </div>
+      </section>
+
+      <section id="visit" class="visit-section">
+        <div>
+          <p class="eyebrow">Visit Bulletproof</p>
+          <h2>2178 Nostrand Ave, Brooklyn, NY 11210</h2>
+          <p>
+            Comics, cards, collectibles, apparel, events, and the kind of wall finds that do not sit around for long.
+          </p>
+        </div>
+        <div class="visit-grid">
+          <div>
+            <span>Hours</span>
+            <strong>Mon-Sat 11 AM-8 PM<br />Sun 11 AM-6 PM</strong>
+          </div>
+          <div>
+            <span>Phone</span>
+            <strong>(718) 434-8512</strong>
+          </div>
+          <div>
+            <span>Email</span>
+            <strong>info@bulletproofcomix.com</strong>
+          </div>
+          <a class="button button-secondary" href="https://maps.google.com/?q=2178+Nostrand+Ave+Brooklyn+NY+11210">
+            <i data-lucide="map-pin"></i>
+            Directions
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div>
+        <strong>Bulletproof Comics</strong>
+        <span>Redesign concept mockup</span>
+      </div>
+      <nav aria-label="Footer navigation">
+        <a href="#drops">Shop</a>
+        <a href="#video-games">Games</a>
+        <a href="#manga">Manga</a>
+        <a href="#vintage-media">Vintage</a>
+        <a href="#events">Events</a>
+        <a href="#visit">Visit</a>
+      </nav>
+    </footer>
+
+    <div class="mobile-action-bar" aria-label="Quick actions">
+      <a href="#drops"><i data-lucide="shopping-bag"></i><span>Shop</span></a>
+      <a href="#events"><i data-lucide="calendar-days"></i><span>Events</span></a>
+      <a href="#visit"><i data-lucide="map-pin"></i><span>Visit</span></a>
+    </div>
+  </body>
+</html>
