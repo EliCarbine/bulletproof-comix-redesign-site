@@ -813,6 +813,143 @@ h3 {
   border-color: transparent;
 }
 
+/* ── Filter toggle button ── */
+
+.filter-toggle {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--radius);
+  color: var(--white);
+  cursor: pointer;
+  display: inline-flex;
+  flex-shrink: 0;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 900;
+  gap: 7px;
+  min-height: 48px;
+  padding: 0 14px;
+  text-transform: uppercase;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.filter-toggle svg {
+  height: 16px;
+  width: 16px;
+}
+
+.filter-toggle:hover,
+.filter-toggle[aria-expanded="true"] {
+  background: rgba(255, 255, 255, 0.13);
+  border-color: var(--cyan);
+}
+
+.filter-badge {
+  align-items: center;
+  background: var(--red);
+  border-radius: 999px;
+  color: var(--white);
+  display: inline-flex;
+  font-size: 0.68rem;
+  font-weight: 950;
+  height: 18px;
+  justify-content: center;
+  min-width: 18px;
+  padding: 0 4px;
+}
+
+/* ── Filter panel ── */
+
+.filter-panel {
+  background: rgba(10, 10, 10, 0.98);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px clamp(18px, 4vw, 56px);
+}
+
+.filter-panel[hidden] {
+  display: none;
+}
+
+.filter-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.filter-label {
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 0.72rem;
+  font-weight: 900;
+  min-width: 68px;
+  text-transform: uppercase;
+}
+
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.filter-chip {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 900;
+  padding: 5px 12px;
+  text-transform: uppercase;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+
+.filter-chip:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--white);
+}
+
+.filter-chip.is-active {
+  background: var(--ink);
+  border-color: var(--cyan);
+  color: var(--white);
+}
+
+.filter-chip[data-ftype="character"].is-active { border-color: rgba(255,255,255,0.4); }
+.filter-chip[data-ftype="volume"].is-active    { border-color: var(--yellow); }
+.filter-chip[data-ftype="issue"].is-active     { border-color: var(--cyan); }
+.filter-chip[data-fpub="marvel"].is-active     { border-color: var(--red); }
+.filter-chip[data-fpub="dc"].is-active         { border-color: var(--cyan); }
+
+.filter-clear {
+  align-self: flex-start;
+  background: transparent;
+  border: 0;
+  color: rgba(255, 255, 255, 0.36);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.filter-clear:hover {
+  color: var(--white);
+}
+
+/* ── Issue type badge ── */
+
+.type-issue {
+  background: var(--cyan);
+  color: var(--ink);
+}
+
 /* ── Type badges (Character / Volume) ── */
 
 .card-badges {

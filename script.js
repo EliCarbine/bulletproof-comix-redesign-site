@@ -36,26 +36,36 @@ filterButtons.forEach((button) => {
   });
 });
 
-// ── Comic Vine search ──
+// ════════════════════════════════════════
+// Comic Vine search
+// ════════════════════════════════════════
 
 const CV_KEY  = "5c556fc0d1f8b81d60a5a8737e71a44cd9b9cd2b";
 const CV_BASE = "https://comicvine.gamespot.com/api";
 
-// /search/ endpoint searches name + real_name + aliases natively for characters
-const CHAR_FIELDS = "id,name,real_name,aliases,deck,image,publisher,first_appeared_in_issue,count_of_issue_appearances";
-const VOL_FIELDS  = "id,name,aliases,deck,count_of_issues,publisher,start_year,image,first_issue,last_issue";
+const CHAR_FIELDS  = "id,name,real_name,aliases,deck,image,publisher,first_appeared_in_issue,count_of_issue_appearances";
+const VOL_FIELDS   = "id,name,aliases,deck,count_of_issues,publisher,start_year,image,first_issue,last_issue";
+const ISSUE_FIELDS = "id,name,issue_number,volume,image,cover_date,store_date,deck";
 
-const overlay     = document.querySelector("[data-search-overlay]");
-const searchInput = document.querySelector("[data-search-input]");
-const searchClose = document.querySelector("[data-search-close]");
-const resultsEl   = document.querySelector("[data-search-results]");
-const hintEl      = document.querySelector("[data-search-hint]");
-const emptyEl     = document.querySelector("[data-search-empty]");
-const errorEl     = document.querySelector("[data-search-error]");
-const loadingEl   = document.querySelector("[data-search-loading]");
+// ── DOM refs ──
+const overlay       = document.querySelector("[data-search-overlay]");
+const searchInput   = document.querySelector("[data-search-input]");
+const searchClose   = document.querySelector("[data-search-close]");
+const resultsEl     = document.querySelector("[data-search-results]");
+const hintEl        = document.querySelector("[data-search-hint]");
+const emptyEl       = document.querySelector("[data-search-empty]");
+const errorEl       = document.querySelector("[data-search-error]");
+const loadingEl     = document.querySelector("[data-search-loading]");
+const filterPanel   = document.querySelector("[data-filter-panel]");
+const filterToggle  = document.querySelector("[data-filter-toggle]");
+const filterBadge   = document.querySelector("[data-filter-badge]");
+const filterClear   = document.querySelector("[data-filter-clear]");
 
-let searchTimer = null;
+// ── State ──
+let searchTimer  = null;
 let jsonpCounter = 0;
+let cachedResults = [];   // all fetched results, pre-filter
+const activeFilters = { type: "all", publisher: "all", year: "all" };
 
 // ── Overlay open/close ──
 
@@ -69,7 +79,7 @@ function openSearch() {
 function closeSearch() {
   overlay.hidden = true;
   document.body.style.overflow = "";
-  clearResults();
+  clearAll();
   searchInput.value = "";
 }
 
@@ -82,19 +92,19 @@ function showOnly(el) {
   if (el === resultsEl) el.hidden = false;
 }
 
-function clearResults() {
+function clearAll() {
   document.querySelector(".char-detail")?.remove();
   resultsEl.innerHTML = "";
+  cachedResults = [];
   showOnly(hintEl);
 }
 
 // ── JSONP ──
-// Comic Vine doesn't support CORS from browsers; use their native JSONP support.
 function jsonpFetch(url) {
   return new Promise((resolve, reject) => {
     const cbName = `_cvCb${++jsonpCounter}`;
     const script = document.createElement("script");
-    const timeout = setTimeout(() => { cleanup(); reject(new Error("Request timed out")); }, 12000);
+    const timeout = setTimeout(() => { cleanup(); reject(new Error("Timed out")); }, 12000);
 
     function cleanup() {
       clearTimeout(timeout);
@@ -110,30 +120,45 @@ function jsonpFetch(url) {
 }
 
 // ── Query normalization ──
-// Generates search variants to handle hyphens, spaces, and mixed casing so
-// "Spider Man" finds "Spider-Man" and vice versa.
+// Generates variants to handle hyphens and spaces so "Spider Man" finds
+// "Spider-Man" and vice versa.
 function queryVariants(q) {
   const base = q.trim();
   const variants = new Set([base]);
-  if (base.includes(" "))  variants.add(base.replace(/\s+/g, "-"));   // "Iron Man" → "Iron-Man"
-  if (base.includes("-"))  variants.add(base.replace(/-/g, " "));     // "Spider-Man" → "Spider Man"
-  if (base.includes("-"))  variants.add(base.replace(/-/g, ""));      // "Spider-Man" → "SpiderMan"
+  if (base.includes(" "))  variants.add(base.replace(/\s+/g, "-"));
+  if (base.includes("-"))  variants.add(base.replace(/-/g, " "));
+  if (base.includes("-"))  variants.add(base.replace(/-/g, ""));
   return [...variants];
 }
 
-// ── Era/year extraction ──
-// Characters: parse 4-digit year from first_appeared_in_issue.name
-//   e.g. "Amazing Fantasy (1962) #15" → 1962
-// Volumes: use start_year directly.
-// Items with no parseable year sort to end (year = 0).
+// ── Year extraction ──
 function extractYear(item) {
-  if (item._type === "volume") return parseInt(item.start_year) || 0;
-  const issueName = item.first_appeared_in_issue?.name || "";
-  const m = issueName.match(/\((\d{4})\)/);
+  if (item._type === "volume")    return parseInt(item.start_year) || 0;
+  if (item._type === "issue") {
+    const d = item.cover_date || item.store_date || "";
+    return parseInt(d.slice(0, 4)) || 0;
+  }
+  // character: parse "(YYYY)" from first_appeared_in_issue.name
+  const name = item.first_appeared_in_issue?.name || "";
+  const m = name.match(/\((\d{4})\)/);
   return m ? parseInt(m[1]) : 0;
 }
 
-// ── Shared utils ──
+// ── Publisher normalization ──
+function publisherName(item) {
+  if (item._type === "issue") return item.volume?.publisher?.name || "";
+  return item.publisher?.name || "";
+}
+
+function publisherClass(name) {
+  if (!name) return "other";
+  const lc = name.toLowerCase();
+  if (lc.includes("marvel")) return "marvel";
+  if (lc.includes("dc"))     return "dc";
+  return "other";
+}
+
+// ── Shared render utils ──
 
 function escHtml(str) {
   return String(str ?? "")
@@ -142,14 +167,6 @@ function escHtml(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
-}
-
-function publisherClass(name) {
-  if (!name) return "other";
-  const lc = name.toLowerCase();
-  if (lc.includes("marvel")) return "marvel";
-  if (lc.includes("dc")) return "dc";
-  return "other";
 }
 
 function pubBadge(name) {
@@ -170,25 +187,39 @@ function issueLabel(issue) {
 
 // ── Card renderer ──
 
+function typeLabel(type) {
+  return { character: "Character", volume: "Volume", issue: "Issue" }[type] || type;
+}
+
 function renderCard(item) {
-  const isVol = item._type === "volume";
-  const img   = item.image?.medium_url || item.image?.small_url || "";
-  const pub   = item.publisher?.name || "";
-  const year  = extractYear(item);
+  const img  = item.image?.medium_url || item.image?.small_url || "";
+  const pub  = publisherName(item);
+  const year = extractYear(item);
+  const type = item._type;
 
   const card = document.createElement("article");
   card.className = "char-card";
   card.setAttribute("tabindex", "0");
   card.setAttribute("aria-label", item.name);
 
-  const typeBadge = `<span class="type-badge ${isVol ? "type-vol" : "type-char"}">${isVol ? "Volume" : "Character"}</span>`;
+  const typeBadge = `<span class="type-badge type-${type}">${typeLabel(type)}</span>`;
 
-  const meta = isVol
-    ? `${item.start_year ? `<span class="vol-year">${escHtml(String(item.start_year))}</span>` : ""}
-       ${item.count_of_issues ? `<p class="vol-issue-count">${escHtml(String(item.count_of_issues))} issues</p>` : ""}`
-    : year
-      ? `<span class="vol-year">${year}</span>`
-      : "";
+  let mainTitle = escHtml(item.name);
+  let meta = "";
+
+  if (type === "issue") {
+    const series = item.volume?.name || "";
+    const issueNum = item.issue_number ? `#${item.issue_number}` : "";
+    mainTitle = series
+      ? `${escHtml(series)} ${escHtml(issueNum)}`
+      : escHtml(item.name);
+    meta = year ? `<span class="vol-year">${year}</span>` : "";
+  } else if (type === "volume") {
+    meta = `${item.start_year ? `<span class="vol-year">${escHtml(String(item.start_year))}</span>` : ""}
+            ${item.count_of_issues ? `<p class="vol-issue-count">${escHtml(String(item.count_of_issues))} issues</p>` : ""}`;
+  } else {
+    meta = year ? `<span class="vol-year">${year}</span>` : "";
+  }
 
   card.innerHTML = `
     ${img
@@ -196,7 +227,7 @@ function renderCard(item) {
       : `<div class="card-img-placeholder"></div>`}
     <div class="char-card-body">
       <div class="card-badges">${typeBadge}${pubBadge(pub)}</div>
-      <h3 class="char-card-name">${escHtml(item.name)}</h3>
+      <h3 class="char-card-name">${mainTitle}</h3>
       ${meta}
       ${item.deck ? `<p class="char-card-deck">${escHtml(item.deck)}</p>` : ""}
     </div>
@@ -212,22 +243,35 @@ function renderCard(item) {
 function showDetail(item) {
   document.querySelector(".char-detail")?.remove();
 
-  const isVol = item._type === "volume";
-  const img   = item.image?.medium_url || item.image?.small_url || "";
-  const pub   = item.publisher?.name || "";
-  const year  = extractYear(item);
+  const img  = item.image?.medium_url || item.image?.small_url || "";
+  const pub  = publisherName(item);
+  const year = extractYear(item);
+  const type = item._type;
 
+  let heading = escHtml(item.name);
   let subtitle = "";
   let tags = "";
 
-  if (isVol) {
+  if (type === "issue") {
+    const series   = item.volume?.name || "";
+    const issueNum = item.issue_number ? `#${item.issue_number}` : "";
+    heading  = series ? `${escHtml(series)} ${escHtml(issueNum)}` : escHtml(item.name);
+    subtitle = item.name !== heading ? item.name : "";
+    tags = [
+      pubBadge(pub),
+      `<span class="type-badge type-issue">Issue</span>`,
+      year                 && detailTag("Cover date", year),
+      item.issue_number    && detailTag("Issue", `#${item.issue_number}`),
+      series               && detailTag("Series", series),
+    ].filter(Boolean).join("");
+  } else if (type === "volume") {
     const aliases    = (item.aliases || "").replace(/\n/g, ", ").trim();
     const firstIssue = issueLabel(item.first_issue) || item.first_issue?.name || "";
     const lastIssue  = issueLabel(item.last_issue)  || item.last_issue?.name  || "";
     subtitle = item.start_year ? `Started ${item.start_year}` : "";
     tags = [
       pubBadge(pub),
-      `<span class="type-badge type-vol">Volume</span>`,
+      `<span class="type-badge type-volume">Volume</span>`,
       item.start_year      && detailTag("Start year", item.start_year),
       item.count_of_issues && `<span class="char-detail-tag">${escHtml(String(item.count_of_issues))} issues</span>`,
       firstIssue           && detailTag("First issue", firstIssue),
@@ -235,6 +279,7 @@ function showDetail(item) {
       aliases              && detailTag("Aliases", aliases),
     ].filter(Boolean).join("");
   } else {
+    // character
     const rawAliases = Array.isArray(item.aliases)
       ? item.aliases.filter(Boolean).join(", ")
       : (item.aliases || "").replace(/\n/g, ", ").trim();
@@ -243,7 +288,7 @@ function showDetail(item) {
     subtitle = item.real_name || "";
     tags = [
       pubBadge(pub),
-      `<span class="type-badge type-char">Character</span>`,
+      `<span class="type-badge type-character">Character</span>`,
       item.real_name                  && detailTag("Real name", item.real_name),
       rawAliases                      && detailTag("Aliases", rawAliases),
       firstIssue                      && detailTag("First appeared", firstIssue),
@@ -262,7 +307,7 @@ function showDetail(item) {
       <button class="char-detail-back" data-detail-back>
         <i data-lucide="arrow-left"></i> Back to results
       </button>
-      <h2 class="char-detail-name">${escHtml(item.name)}</h2>
+      <h2 class="char-detail-name">${heading}</h2>
       ${subtitle ? `<p class="char-detail-realname">${escHtml(subtitle)}</p>` : ""}
       ${item.deck ? `<p class="char-detail-desc">${escHtml(item.deck)}</p>` : ""}
       <div class="char-detail-meta">${tags}</div>
@@ -281,98 +326,191 @@ function showDetail(item) {
   if (window.lucide) window.lucide.createIcons();
 }
 
-// ── Character fetch ──
-// Uses /search/ endpoint which queries name, real_name, AND aliases natively.
-// Fires one request per query variant (with/without hyphens) and deduplicates by ID.
-async function fetchCharacters(query) {
-  const variants = queryVariants(query);
-  const requests = variants.map((v) => {
-    const url = `${CV_BASE}/search/?api_key=${CV_KEY}&query=${encodeURIComponent(v)}&resources=character&field_list=${CHAR_FIELDS}&limit=20`;
-    return jsonpFetch(url)
-      .then((d) => (d.status_code === 1 ? d.results || [] : []))
-      .catch(() => []);
-  });
+// ── Filter logic ──
 
-  const batches = await Promise.all(requests);
-  const seen = new Set();
-  const chars = [];
-  for (const batch of batches) {
-    for (const c of batch) {
-      if (!seen.has(c.id)) {
-        seen.add(c.id);
-        chars.push({ ...c, _type: "character" });
-      }
+function matchesFilters(item) {
+  const { type, publisher, year } = activeFilters;
+
+  if (type !== "all" && item._type !== type) return false;
+
+  if (publisher !== "all") {
+    const pub = publisherName(item).toLowerCase();
+    if (publisher === "marvel" && !pub.includes("marvel")) return false;
+    if (publisher === "dc"     && !pub.includes("dc"))     return false;
+    if (publisher === "other"  && (pub.includes("marvel") || pub.includes("dc"))) return false;
+  }
+
+  if (year !== "all") {
+    const y = extractYear(item);
+    if (!y) return false;
+    if (year === "pre1960") {
+      if (y >= 1960) return false;
+    } else {
+      const decade = parseInt(year);
+      if (y < decade || y >= decade + 10) return false;
     }
   }
-  return chars;
+
+  return true;
 }
 
-// ── Volume fetch ──
-// /volumes/ doesn't have a full-text search endpoint, so we use filter=name:X
-// and fire per query variant, deduplicating by ID.
+function renderFiltered() {
+  document.querySelector(".char-detail")?.remove();
+  const filtered = cachedResults.filter(matchesFilters);
+
+  if (!filtered.length) {
+    resultsEl.innerHTML = "";
+    showOnly(cachedResults.length ? emptyEl : hintEl);
+    return;
+  }
+
+  resultsEl.innerHTML = "";
+  filtered.forEach((item) => resultsEl.appendChild(renderCard(item)));
+  showOnly(resultsEl);
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function updateFilterBadge() {
+  const count = [
+    activeFilters.type      !== "all",
+    activeFilters.publisher !== "all",
+    activeFilters.year      !== "all",
+  ].filter(Boolean).length;
+
+  filterBadge.textContent = count;
+  filterBadge.hidden = count === 0;
+  filterToggle.setAttribute("aria-expanded", !filterPanel.hidden ? "true" : "false");
+}
+
+// ── API fetchers ──
+
+async function fetchCharacters(query) {
+  const variants = queryVariants(query);
+  const reqs = variants.map((v) => {
+    const url = `${CV_BASE}/search/?api_key=${CV_KEY}&query=${encodeURIComponent(v)}&resources=character&field_list=${CHAR_FIELDS}&limit=20`;
+    return jsonpFetch(url).then((d) => (d.status_code === 1 ? d.results || [] : [])).catch(() => []);
+  });
+  const batches = await Promise.all(reqs);
+  const seen = new Set();
+  return batches.flat().filter((c) => { if (seen.has(c.id)) return false; seen.add(c.id); return true; })
+    .map((c) => ({ ...c, _type: "character" }));
+}
+
 async function fetchVolumes(query) {
   const variants = queryVariants(query);
-  const requests = variants.map((v) => {
+  const reqs = variants.map((v) => {
     const url = `${CV_BASE}/volumes/?api_key=${CV_KEY}&filter=name:${encodeURIComponent(v)}&field_list=${VOL_FIELDS}&limit=20&sort=start_year:desc`;
-    return jsonpFetch(url)
-      .then((d) => (d.status_code === 1 ? d.results || [] : []))
-      .catch(() => []);
+    return jsonpFetch(url).then((d) => (d.status_code === 1 ? d.results || [] : [])).catch(() => []);
   });
-
-  const batches = await Promise.all(requests);
+  const batches = await Promise.all(reqs);
   const seen = new Set();
-  const vols = [];
-  for (const batch of batches) {
-    for (const v of batch) {
-      if (!seen.has(v.id)) {
-        seen.add(v.id);
-        vols.push({ ...v, _type: "volume" });
-      }
-    }
-  }
-  return vols;
+  return batches.flat().filter((v) => { if (seen.has(v.id)) return false; seen.add(v.id); return true; })
+    .map((v) => ({ ...v, _type: "volume" }));
+}
+
+async function fetchIssues(query) {
+  const variants = queryVariants(query);
+  const reqs = variants.map((v) => {
+    const url = `${CV_BASE}/issues/?api_key=${CV_KEY}&filter=name:${encodeURIComponent(v)}&field_list=${ISSUE_FIELDS}&limit=20&sort=cover_date:desc`;
+    return jsonpFetch(url).then((d) => (d.status_code === 1 ? d.results || [] : [])).catch(() => []);
+  });
+  const batches = await Promise.all(reqs);
+  const seen = new Set();
+  return batches.flat().filter((i) => { if (seen.has(i.id)) return false; seen.add(i.id); return true; })
+    .map((i) => ({ ...i, _type: "issue" }));
 }
 
 // ── Main search ──
-// Both APIs fire in parallel. Results merge into one array and sort by era
-// (latest year first; items with no parseable year fall to the end).
+
 async function doSearch(query) {
-  if (!query.trim()) { clearResults(); return; }
+  if (!query.trim()) { clearAll(); return; }
   showOnly(loadingEl);
 
   try {
-    const [characters, volumes] = await Promise.all([
+    const [characters, volumes, issues] = await Promise.all([
       fetchCharacters(query),
       fetchVolumes(query),
+      fetchIssues(query),
     ]);
 
-    const merged = [...characters, ...volumes];
-    if (!merged.length) { showOnly(emptyEl); return; }
+    const merged = [...characters, ...volumes, ...issues];
 
-    // Sort latest era → oldest; items with year=0 (unknown) go last
+    // Sort latest era → oldest; unknown year falls to end
     merged.sort((a, b) => {
-      const ya = extractYear(a);
-      const yb = extractYear(b);
-      if (ya === 0 && yb === 0) return 0;
-      if (ya === 0) return 1;
-      if (yb === 0) return -1;
+      const ya = extractYear(a), yb = extractYear(b);
+      if (!ya && !yb) return 0;
+      if (!ya) return 1;
+      if (!yb) return -1;
       return yb - ya;
     });
 
-    resultsEl.innerHTML = "";
-    merged.forEach((item) => resultsEl.appendChild(renderCard(item)));
-    showOnly(resultsEl);
-    if (window.lucide) window.lucide.createIcons();
+    cachedResults = merged;
+
+    if (!merged.length) { showOnly(emptyEl); return; }
+    renderFiltered();
   } catch (err) {
     console.error("Search error:", err);
     showOnly(errorEl);
   }
 }
 
-// ── Event bindings ──
+// ── Filter panel events ──
+
+filterToggle?.addEventListener("click", () => {
+  const isOpen = filterPanel.hidden;
+  filterPanel.hidden = !isOpen;
+  filterToggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+});
+
+// Type chips
+document.querySelectorAll("[data-ftype]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("[data-ftype]").forEach((b) => b.classList.remove("is-active"));
+    btn.classList.add("is-active");
+    activeFilters.type = btn.dataset.ftype;
+    updateFilterBadge();
+    renderFiltered();
+  });
+});
+
+// Publisher chips
+document.querySelectorAll("[data-fpub]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("[data-fpub]").forEach((b) => b.classList.remove("is-active"));
+    btn.classList.add("is-active");
+    activeFilters.publisher = btn.dataset.fpub;
+    updateFilterBadge();
+    renderFiltered();
+  });
+});
+
+// Year chips
+document.querySelectorAll("[data-fyear]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("[data-fyear]").forEach((b) => b.classList.remove("is-active"));
+    btn.classList.add("is-active");
+    activeFilters.year = btn.dataset.fyear;
+    updateFilterBadge();
+    renderFiltered();
+  });
+});
+
+// Clear all filters
+filterClear?.addEventListener("click", () => {
+  activeFilters.type = "all";
+  activeFilters.publisher = "all";
+  activeFilters.year = "all";
+  document.querySelectorAll("[data-ftype]")[0]?.classList.add("is-active");
+  document.querySelectorAll("[data-ftype]").forEach((b, i) => b.classList.toggle("is-active", i === 0));
+  document.querySelectorAll("[data-fpub]").forEach((b, i) => b.classList.toggle("is-active", i === 0));
+  document.querySelectorAll("[data-fyear]").forEach((b, i) => b.classList.toggle("is-active", i === 0));
+  updateFilterBadge();
+  renderFiltered();
+});
+
+// ── Search input ──
 
 document.querySelector('[aria-label="Search"]')?.addEventListener("click", openSearch);
-
 searchClose?.addEventListener("click", closeSearch);
 
 overlay?.addEventListener("click", (e) => {
@@ -386,6 +524,6 @@ document.addEventListener("keydown", (e) => {
 searchInput?.addEventListener("input", (e) => {
   clearTimeout(searchTimer);
   const q = e.target.value.trim();
-  if (!q) { clearResults(); return; }
+  if (!q) { clearAll(); return; }
   searchTimer = setTimeout(() => doSearch(q), 420);
 });

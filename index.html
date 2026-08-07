@@ -54,15 +54,56 @@
             aria-label="Search comic characters and volumes"
           />
         </div>
+        <button class="filter-toggle" data-filter-toggle aria-expanded="false" aria-label="Toggle filters">
+          <i data-lucide="sliders-horizontal"></i>
+          <span>Filters</span>
+          <span class="filter-badge" data-filter-badge hidden>0</span>
+        </button>
         <button class="search-close" data-search-close aria-label="Close search">
           <i data-lucide="x"></i>
         </button>
       </div>
 
+      <div class="filter-panel" data-filter-panel hidden>
+        <div class="filter-row">
+          <span class="filter-label">Type</span>
+          <div class="filter-chips">
+            <button class="filter-chip is-active" data-ftype="all">All</button>
+            <button class="filter-chip" data-ftype="character">Characters</button>
+            <button class="filter-chip" data-ftype="volume">Volumes</button>
+            <button class="filter-chip" data-ftype="issue">Issues</button>
+          </div>
+        </div>
+        <div class="filter-row">
+          <span class="filter-label">Publisher</span>
+          <div class="filter-chips">
+            <button class="filter-chip is-active" data-fpub="all">All</button>
+            <button class="filter-chip" data-fpub="marvel">Marvel</button>
+            <button class="filter-chip" data-fpub="dc">DC</button>
+            <button class="filter-chip" data-fpub="other">Other</button>
+          </div>
+        </div>
+        <div class="filter-row">
+          <span class="filter-label">Era</span>
+          <div class="filter-chips">
+            <button class="filter-chip is-active" data-fyear="all">All</button>
+            <button class="filter-chip" data-fyear="2020">2020s</button>
+            <button class="filter-chip" data-fyear="2010">2010s</button>
+            <button class="filter-chip" data-fyear="2000">2000s</button>
+            <button class="filter-chip" data-fyear="1990">1990s</button>
+            <button class="filter-chip" data-fyear="1980">1980s</button>
+            <button class="filter-chip" data-fyear="1970">1970s</button>
+            <button class="filter-chip" data-fyear="1960">1960s</button>
+            <button class="filter-chip" data-fyear="pre1960">Pre-1960</button>
+          </div>
+        </div>
+        <button class="filter-clear" data-filter-clear>Clear all filters</button>
+      </div>
+
       <div class="search-body" data-search-body>
-        <p class="search-hint" data-search-hint>Type a name to search the Comic Vine database.</p>
+        <p class="search-hint" data-search-hint>Type a name to search characters, volumes, and issues.</p>
         <div class="search-results" data-search-results hidden></div>
-        <p class="search-empty" data-search-empty hidden>No results found. Try a different name.</p>
+        <p class="search-empty" data-search-empty hidden>No results found. Try a different name or adjust filters.</p>
         <p class="search-error" data-search-error hidden>Something went wrong. Check your connection and try again.</p>
         <div class="search-loading" data-search-loading hidden>
           <span class="spinner"></span>
